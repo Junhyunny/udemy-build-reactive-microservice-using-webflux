@@ -4,16 +4,20 @@ import com.example.movieinfoservice.domain.MovieInfo;
 import com.example.movieinfoservice.service.MovieInfoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 
 @RestController
 @RequestMapping("/v1")
 public class MoviesInfoController {
 
     private final MovieInfoService movieInfoService;
+
+    private final Sinks.Many<MovieInfo> movieInfoSinks = Sinks.many().replay().all();
 
     public MoviesInfoController(MovieInfoService movieInfoService) {
         this.movieInfoService = movieInfoService;
@@ -22,7 +26,11 @@ public class MoviesInfoController {
     @PostMapping("/movie-infos")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<MovieInfo> addMovieInfo(@Valid @RequestBody MovieInfo movieInfo) {
-        return movieInfoService.addMovieInfo(movieInfo).log();
+        return movieInfoService.addMovieInfo(movieInfo)
+                .log()
+                .doOnNext(movieInfoSinks::tryEmitNext);
+        // publish that movie to something
+        // subscriber to this movie info
     }
 
     @GetMapping("/movie-infos")
@@ -40,6 +48,12 @@ public class MoviesInfoController {
                 .map(info -> ResponseEntity.ok().body(info))
                 .defaultIfEmpty(ResponseEntity.notFound().build())
                 ;
+    }
+
+    @GetMapping(value = "/movie-infos/stream", produces = MediaType.APPLICATION_NDJSON_VALUE)
+    public Flux<MovieInfo> getMovieInfoStream() {
+        System.out.println("asFlux");
+        return movieInfoSinks.asFlux();
     }
 
     @PutMapping("/movie-infos/{id}")

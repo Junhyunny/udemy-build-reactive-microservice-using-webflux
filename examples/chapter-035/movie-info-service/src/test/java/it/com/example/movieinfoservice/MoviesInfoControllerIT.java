@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.test.StepVerifier;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -76,7 +77,7 @@ class MoviesInfoControllerIT {
 
 
         webTestClient.post()
-                .uri("/v1/movie-info")
+                .uri("/v1/movie-infos")
                 .bodyValue(movieInfo)
                 .exchange()
                 .expectStatus().isCreated()
@@ -199,5 +200,40 @@ class MoviesInfoControllerIT {
                 .jsonPath("$.size()").isEqualTo(1)
                 .jsonPath("$[0].name").isEqualTo("The Dark Knight")
         ;
+    }
+
+    @Test
+    void getAllMovieInfoStream() {
+
+        var movieInfo = MovieInfo.builder()
+                .movieInfoId(null)
+                .name("Batman Begins 1")
+                .year(2005)
+                .cast(List.of("Christian Bale", "Michael Cane"))
+                .releaseDate(LocalDate.parse("2005-06-15"))
+                .build();
+
+
+        webTestClient.post()
+                .uri("/v1/movie-infos")
+                .bodyValue(movieInfo)
+                .exchange()
+                .expectStatus().isCreated()
+        ;
+
+        var movieInfoStream = webTestClient
+                .get()
+                .uri("/v1/movie-infos/stream")
+                .exchange()
+                .expectStatus().is2xxSuccessful()
+                .returnResult(MovieInfo.class)
+                .getResponseBody();
+
+        StepVerifier.create(movieInfoStream)
+                .assertNext(responseMovieInfo -> {
+                    assertThat(responseMovieInfo.getMovieInfoId() != null, equalTo(true));
+                })
+                .thenCancel()
+                .verify();
     }
 }

@@ -1,13 +1,14 @@
 package com.example.movieservice.client;
 
-import com.example.movieservice.util.RetryUtil;
 import com.example.movieservice.domain.MovieInfo;
 import com.example.movieservice.exception.MovieInfoClientException;
 import com.example.movieservice.exception.MovieInfoServerException;
+import com.example.movieservice.util.RetryUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -27,8 +28,6 @@ public class MoviesInfoRestClient {
     }
 
     public Mono<MovieInfo> retrieveMovieInfo(String movieId) {
-
-
         return webClient.get()
                 .uri(movieInfoUrl.concat("/{id}"), movieId)
                 .retrieve()
@@ -54,5 +53,13 @@ public class MoviesInfoRestClient {
                 .retryWhen(RetryUtil.retrySpec())
                 .log()
                 ;
+    }
+
+    public Flux<MovieInfo> retrieveMovieInfoStream() {
+        return webClient
+                .get()
+                .uri(movieInfoUrl.concat("/stream"))
+                .retrieve()
+                .bodyToFlux(MovieInfo.class);
     }
 }

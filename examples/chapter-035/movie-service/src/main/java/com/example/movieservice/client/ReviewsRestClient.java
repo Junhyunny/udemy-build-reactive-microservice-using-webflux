@@ -1,8 +1,8 @@
 package com.example.movieservice.client;
 
-import com.example.movieservice.util.RetryUtil;
 import com.example.movieservice.domain.Review;
 import com.example.movieservice.exception.ReviewServerException;
+import com.example.movieservice.util.RetryUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
@@ -56,5 +56,13 @@ public class ReviewsRestClient {
                 .retryWhen(RetryUtil.retrySpec())
                 .log()
                 ;
+    }
+
+    public Flux<Review> retrieveReviewsStream() {
+        return webClient
+                .get()
+                .uri(movieReviewUrl.concat("/stream"))
+                .retrieve()
+                .bodyToFlux(Review.class);
     }
 }

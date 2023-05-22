@@ -1,17 +1,19 @@
 package com.example.moviereviewservice.handler;
 
-import com.example.moviereviewservice.repository.ReviewReactiveRepository;
 import com.example.moviereviewservice.domain.Review;
 import com.example.moviereviewservice.exception.ReviewDataException;
 import com.example.moviereviewservice.exception.ReviewNotFoundException;
+import com.example.moviereviewservice.repository.ReviewReactiveRepository;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 
 import java.util.stream.Collectors;
 
@@ -21,6 +23,7 @@ public class ReviewHandler {
 
     private final Validator validator;
     private final ReviewReactiveRepository reviewRepository;
+    private final Sinks.Many<Review> reviewSinks = Sinks.many().replay().all();
 
     public ReviewHandler(Validator validator, ReviewReactiveRepository reviewRepository) {
         this.validator = validator;
@@ -44,6 +47,7 @@ public class ReviewHandler {
         return request.bodyToMono(Review.class)
                 .doOnNext(this::validate)
                 .flatMap(reviewRepository::save)
+                .doOnNext(reviewSinks::tryEmitNext)
                 .flatMap(ServerResponse.status(HttpStatus.CREATED)::bodyValue)
                 ;
     }
@@ -86,5 +90,12 @@ public class ReviewHandler {
         return reviewRepository.deleteById(reviewId)
                 .then(ServerResponse.noContent().build())
                 ;
+    }
+
+    public Mono<ServerResponse> getReviewsStream(ServerRequest serverRequest) {
+        return ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_NDJSON)
+                .body(reviewSinks.asFlux(), Review.class)
+                .log();
     }
 }
